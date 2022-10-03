@@ -1,4 +1,6 @@
-export class User {
+import {UserType} from "../types";
+
+export class User implements UserType{
   constructor(
     public email: string,
     public id: string,

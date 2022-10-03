@@ -1,23 +1,30 @@
-import {Injectable} from "@angular/core";
-import {Resolve} from "@angular/router";
-import {Recipe} from "../models/recipe.model";
-import {DataStorageService} from "../shared/services/data-storage.service";
-import {RecipeService} from "../services/recipe.service";
+import { Injectable } from '@angular/core';
+import { Resolve } from '@angular/router';
+import { Recipe } from '../models/recipe.model';
+import { Store } from '@ngrx/store';
+import { StoreType } from '../types';
+import { mergeMap, take, tap } from 'rxjs/operators';
+import { fetchRecipes, setRecipes } from '../store/recipes/recipe.actions';
+import { Actions, ofType } from '@ngrx/effects';
+import { of } from 'rxjs';
 
 @Injectable({
-  providedIn: "root"
+  providedIn: 'root',
 })
-export class RecipesResolverService implements Resolve<Recipe[]>{
-  constructor(private dataStorageService: DataStorageService, private recipeService: RecipeService) {}
-
+export class RecipesResolverService implements Resolve<Recipe[]> {
+  constructor(private store: Store<StoreType>, private actions$: Actions) {}
 
   resolve(): any {
-    const currentRecipes = this.recipeService.getRecipes()
+    const handleMergeMap = ({ recipes }: StoreType['recipes']) => {
+      if (!recipes.length) {
+        this.store.dispatch(fetchRecipes());
 
-    if(!currentRecipes.length){
-      return this.dataStorageService.fetchRecipes()
-    }
+        return this.actions$.pipe(ofType(setRecipes), take(1));
+      }
 
-    return currentRecipes
+      return of(recipes);
+    };
+
+    return this.store.select('recipes').pipe(take(1), mergeMap(handleMergeMap));
   }
 }

@@ -1,97 +1,108 @@
-import {Component, ComponentFactoryResolver, OnDestroy, ViewChild} from "@angular/core";
-import {NgForm} from "@angular/forms";
-import {AuthResponseData, AuthService} from "../../../services/auth.service";
-import {Observable, Subscription} from "rxjs";
-import {Router} from "@angular/router";
-import {AlertComponent} from "../alert/alert.component";
-import {PlaceholderDirective} from "../../directives/placeholder.directive";
+import {
+  Component,
+  ComponentFactoryResolver,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
+import { NgForm } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import { AlertComponent } from '../alert/alert.component';
+import { PlaceholderDirective } from '../../directives/placeholder.directive';
+import { Store } from '@ngrx/store';
+import { StoreType } from '../../../types';
+import {
+  loginStart,
+  resetError,
+  signUpStart,
+} from '../../../store/auth/auth.actions';
 
 @Component({
-  selector: "app-auth",
-  templateUrl: './auth.component.html'
+  selector: 'app-auth',
+  templateUrl: './auth.component.html',
 })
-export class AuthComponent{
-  isLoginMode = true
-  isLoading = false
-  error: string | null = null
+export class AuthComponent implements OnInit, OnDestroy {
+  isLoginMode = true;
+  isLoading = false;
+  error: string | null = null;
 
-  subscription!: Subscription
+  closeSubscription!: Subscription;
+  authSubscription!: Subscription;
 
-  @ViewChild(PlaceholderDirective) alertHost!: PlaceholderDirective
+  @ViewChild(PlaceholderDirective) alertHost!: PlaceholderDirective;
 
   constructor(
-    private authService: AuthService,
-    private router: Router,
-    private componentFactoryresolver: ComponentFactoryResolver
-  ) {
-  }
+    private componentFactoryresolver: ComponentFactoryResolver,
+    private store: Store<StoreType>
+  ) {}
 
   handleSwitchMode = () => {
-    this.isLoginMode = !this.isLoginMode
-  }
+    this.isLoginMode = !this.isLoginMode;
+  };
 
   handleSubmit = (authForm: NgForm) => {
-    if(!authForm.valid){
-      return
+    if (!authForm.valid) {
+      return;
     }
 
-    const {email, password} = authForm.value
+    const { email, password } = authForm.value;
 
-    this.isLoading = true
-
-    let authObservable: Observable<AuthResponseData>;
-
-    if(this.isLoginMode){
-      authObservable = this.authService
-        .login(email, password)
+    if (this.isLoginMode) {
+      this.store.dispatch(loginStart({ payload: { email, password } }));
     } else {
-      authObservable = this.authService
-        .signup(email, password)
+      this.store.dispatch(signUpStart({ payload: { email, password } }));
     }
 
-    const handleResolveSubscribe = (resData: AuthResponseData) => {
-      this.isLoading = false
-      this.error = null
-
-      this.router.navigate(['/recipes'])
-
-      console.log(resData)
-    }
-
-    const handleErrorSubscribe = (errorMessage: any) => {
-      this.isLoading = false
-      this.error = errorMessage
-
-      this.showErrorAlert()
-
-      console.log(errorMessage)
-    }
-
-    authObservable.subscribe({next: handleResolveSubscribe, error: handleErrorSubscribe})
-
-    authForm.reset()
-  }
+    authForm.reset();
+  };
 
   handleClose = () => {
-    this.error = null
-  }
+    this.store.dispatch(resetError());
+  };
 
   private showErrorAlert = () => {
-    const alertComponent = this.componentFactoryresolver.resolveComponentFactory(AlertComponent)
+    const alertComponent =
+      this.componentFactoryresolver.resolveComponentFactory(AlertComponent);
 
-    const hostViewContainerRef = this.alertHost.viewContainerRef
+    const hostViewContainerRef = this.alertHost.viewContainerRef;
 
-    hostViewContainerRef.clear()
+    hostViewContainerRef.clear();
 
-    const componentRef = hostViewContainerRef.createComponent(alertComponent)
+    const componentRef = hostViewContainerRef.createComponent(alertComponent);
 
-    componentRef.instance.message = this.error as string
+    componentRef.instance.message = this.error as string;
 
-    this.subscription = componentRef.instance.onClose.subscribe(() => {
-      this.subscription.unsubscribe()
-      this.handleClose()
+    this.closeSubscription = componentRef.instance.onClose.subscribe(() => {
+      this.closeSubscription.unsubscribe();
+      this.handleClose();
 
-      hostViewContainerRef.clear()
-    })
+      hostViewContainerRef.clear();
+    });
+  };
+
+  ngOnInit() {
+    const handleAuthSubscribe = ({ error, loading }: StoreType['auth']) => {
+      this.isLoading = loading;
+
+      if (error) {
+        this.error = error;
+
+        this.showErrorAlert();
+      }
+    };
+
+    this.authSubscription = this.store
+      .select('auth')
+      .subscribe(handleAuthSubscribe);
+  }
+
+  ngOnDestroy() {
+    if (this.closeSubscription) {
+      this.closeSubscription.unsubscribe();
+    }
+
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+    }
   }
 }

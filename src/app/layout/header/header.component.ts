@@ -1,46 +1,47 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
-import {DataStorageService} from "../../shared/services/data-storage.service";
-import {AuthService} from "../../services/auth.service";
-import {User} from "../../models/user.model";
-import {Subscription} from "rxjs";
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
+import { Subscription } from 'rxjs';
+import { StoreType } from '../../types';
+import { Store } from '@ngrx/store';
+import { fetchRecipes, storeRecipes } from '../../store/recipes/recipe.actions';
 
 @Component({
   selector: 'app-header',
   templateUrl: './header.component.html',
 })
-export class HeaderComponent implements OnInit, OnDestroy{
-  isAuthenticated = false
+export class HeaderComponent implements OnInit, OnDestroy {
+  isAuthenticated = false;
 
-  private userSubscription!: Subscription
-
+  private userSubscription!: Subscription;
 
   constructor(
-    private dataStorageService: DataStorageService,
+    private store: Store<StoreType>,
     private authService: AuthService
   ) {}
 
   ngOnInit() {
-    const handleUserSubscription = (userData: User | null) => {
-      this.isAuthenticated = !!userData
-    }
+    const handleUserSubscription = ({ user }: StoreType['auth']) => {
+      this.isAuthenticated = !!user;
+    };
 
-    this.userSubscription = this.authService.subscribeUserSubject(handleUserSubscription)
+    this.userSubscription = this.store
+      .select('auth')
+      .subscribe(handleUserSubscription);
   }
 
   ngOnDestroy() {
-    this.userSubscription.unsubscribe()
+    this.userSubscription.unsubscribe();
   }
 
   handleLogOut = () => {
-    this.authService.logout()
-  }
-
+    this.authService.logout();
+  };
 
   handleSaveData = () => {
-   this.dataStorageService.storeRecipe()
-  }
+    this.store.dispatch(storeRecipes());
+  };
 
   handleFetchData = () => {
-    this.dataStorageService.fetchRecipes().subscribe()
-  }
+    this.store.dispatch(fetchRecipes());
+  };
 }

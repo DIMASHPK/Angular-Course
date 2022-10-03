@@ -7,24 +7,28 @@ import { HeaderComponent } from './layout/header/header.component';
 import {SharedModule} from "./modules/shared.module";
 import {CoreModule} from "./modules/core.module";
 import {StoreModule} from "@ngrx/store";
-import {rootReducer} from "./ngrx/rootReducer";
+import {rootReducer} from "./store/rootReducer";
+import {EffectsModule} from "@ngrx/effects";
+import {rootEffects} from "./store/rootEffects";
+import {StoreDevtoolsModule} from "@ngrx/store-devtools";
+import {environment} from "../environments/environment";
+import {StoreRouterConnectingModule} from "@ngrx/router-store";
 
 
 
 @NgModule({
-  declarations: [
-    AppComponent,
-    HeaderComponent
-  ],
+  declarations: [AppComponent, HeaderComponent],
   imports: [
-    BrowserModule,
+    BrowserModule.withServerTransition({ appId: 'serverApp' }),
     AppRoutingModule,
     SharedModule,
     CoreModule,
-    StoreModule.forRoot(rootReducer)
+    StoreModule.forRoot(rootReducer),
+    EffectsModule.forRoot(rootEffects),
+    StoreDevtoolsModule.instrument({ logOnly: environment.production }),
+    StoreRouterConnectingModule.forRoot()
   ],
   providers: [],
   bootstrap: [AppComponent],
-
 })
 export class AppModule {}
